@@ -1,5 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
+import { getPgPool, getSqliteDb, usingPostgres } from "./dbConnection";
 import type { DiscriminationType } from "./institutions";
 
 export const MIN_DISPLAY_THRESHOLD = 5;
@@ -33,42 +32,54 @@ CREATE TABLE IF NOT EXISTS report_entries (
   created_at {TIMESTAMP} DEFAULT {NOW}
 )`;
 
-interface DbAdapter {
-  insertReportEntry(entry: NewReportEntry): Promise<void>;
-  getStats(): Promise<Stats>;
+let tableReadyPromise: Promise<void> | null = null;
+
+async function ensureTable(): Promise<void> {
+  if (tableReadyPromise) return tableReadyPromise;
+
+  tableReadyPromise = (async () => {
+    if (usingPostgres()) {
+      const pool = await getPgPool();
+      const sql = CREATE_TABLE_SQL.replace("{AUTOINCREMENT}", "GENERATED ALWAYS AS IDENTITY")
+        .replace("{TIMESTAMP}", "TIMESTAMPTZ")
+        .replace("{NOW}", "now()");
+      await pool.query(sql);
+    } else {
+      const db = await getSqliteDb();
+      const sql = CREATE_TABLE_SQL.replace("{AUTOINCREMENT}", "AUTOINCREMENT")
+        .replace("{TIMESTAMP}", "TEXT")
+        .replace("{NOW}", "(datetime('now'))");
+      db.exec(sql);
+    }
+  })();
+
+  return tableReadyPromise;
 }
 
-class PostgresAdapter implements DbAdapter {
-  private poolPromise: Promise<import("pg").Pool>;
+export async function insertReportEntry(entry: NewReportEntry): Promise<void> {
+  await ensureTable();
 
-  constructor(connectionString: string) {
-    this.poolPromise = import("pg").then(({ Pool }) => {
-      const pool = new Pool({ connectionString, ssl: { rejectUnauthorized: false } });
-      return pool;
-    });
-  }
-
-  private async ensureTable() {
-    const pool = await this.poolPromise;
-    const sql = CREATE_TABLE_SQL.replace("{AUTOINCREMENT}", "GENERATED ALWAYS AS IDENTITY")
-      .replace("{TIMESTAMP}", "TIMESTAMPTZ")
-      .replace("{NOW}", "now()");
-    await pool.query(sql);
-  }
-
-  async insertReportEntry(entry: NewReportEntry) {
-    await this.ensureTable();
-    const pool = await this.poolPromise;
+  if (usingPostgres()) {
+    const pool = await getPgPool();
     await pool.query(
       `INSERT INTO report_entries (discrimination_type, region, context, event_month, event_year)
        VALUES ($1, $2, $3, $4, $5)`,
       [entry.discriminationType, entry.region, entry.context, entry.eventMonth, entry.eventYear]
     );
+  } else {
+    const db = await getSqliteDb();
+    db.prepare(
+      `INSERT INTO report_entries (discrimination_type, region, context, event_month, event_year)
+       VALUES (?, ?, ?, ?, ?)`
+    ).run(entry.discriminationType, entry.region, entry.context, entry.eventMonth, entry.eventYear);
   }
+}
 
-  async getStats(): Promise<Stats> {
-    await this.ensureTable();
-    const pool = await this.poolPromise;
+export async function getStats(): Promise<Stats> {
+  await ensureTable();
+
+  if (usingPostgres()) {
+    const pool = await getPgPool();
 
     const [total, byMonth, byType, byRegion] = await Promise.all([
       pool.query<{ count: string }>(`SELECT COUNT(*)::text as count FROM report_entries`),
@@ -97,88 +108,39 @@ class PostgresAdapter implements DbAdapter {
       threshold: MIN_DISPLAY_THRESHOLD,
     };
   }
-}
 
-class SqliteAdapter implements DbAdapter {
-  private dbPromise: Promise<import("better-sqlite3").Database>;
+  const db = await getSqliteDb();
 
-  constructor(filePath: string) {
-    this.dbPromise = import("better-sqlite3").then(({ default: Database }) => {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      const db = new Database(filePath);
-      const sql = CREATE_TABLE_SQL.replace("{AUTOINCREMENT}", "AUTOINCREMENT")
-        .replace("{TIMESTAMP}", "TEXT")
-        .replace("{NOW}", "(datetime('now'))");
-      db.exec(sql);
-      return db;
-    });
-  }
+  const total = db.prepare(`SELECT COUNT(*) as count FROM report_entries`).get() as {
+    count: number;
+  };
 
-  async insertReportEntry(entry: NewReportEntry) {
-    const db = await this.dbPromise;
-    db.prepare(
-      `INSERT INTO report_entries (discrimination_type, region, context, event_month, event_year)
-       VALUES (?, ?, ?, ?, ?)`
-    ).run(entry.discriminationType, entry.region, entry.context, entry.eventMonth, entry.eventYear);
-  }
+  const byMonth = db
+    .prepare(
+      `SELECT (event_year || '-' || substr('0' || event_month, -2)) as key, COUNT(*) as count
+       FROM report_entries GROUP BY event_year, event_month HAVING COUNT(*) >= ? ORDER BY event_year, event_month`
+    )
+    .all(MIN_DISPLAY_THRESHOLD) as { key: string; count: number }[];
 
-  async getStats(): Promise<Stats> {
-    const db = await this.dbPromise;
+  const byType = db
+    .prepare(
+      `SELECT discrimination_type as key, COUNT(*) as count FROM report_entries
+       GROUP BY discrimination_type HAVING COUNT(*) >= ? ORDER BY count DESC`
+    )
+    .all(MIN_DISPLAY_THRESHOLD) as { key: string; count: number }[];
 
-    const total = db.prepare(`SELECT COUNT(*) as count FROM report_entries`).get() as {
-      count: number;
-    };
+  const byRegion = db
+    .prepare(
+      `SELECT region as key, COUNT(*) as count FROM report_entries
+       GROUP BY region HAVING COUNT(*) >= ? ORDER BY count DESC`
+    )
+    .all(MIN_DISPLAY_THRESHOLD) as { key: string; count: number }[];
 
-    const byMonth = db
-      .prepare(
-        `SELECT (event_year || '-' || substr('0' || event_month, -2)) as key, COUNT(*) as count
-         FROM report_entries GROUP BY event_year, event_month HAVING COUNT(*) >= ? ORDER BY event_year, event_month`
-      )
-      .all(MIN_DISPLAY_THRESHOLD) as { key: string; count: number }[];
-
-    const byType = db
-      .prepare(
-        `SELECT discrimination_type as key, COUNT(*) as count FROM report_entries
-         GROUP BY discrimination_type HAVING COUNT(*) >= ? ORDER BY count DESC`
-      )
-      .all(MIN_DISPLAY_THRESHOLD) as { key: string; count: number }[];
-
-    const byRegion = db
-      .prepare(
-        `SELECT region as key, COUNT(*) as count FROM report_entries
-         GROUP BY region HAVING COUNT(*) >= ? ORDER BY count DESC`
-      )
-      .all(MIN_DISPLAY_THRESHOLD) as { key: string; count: number }[];
-
-    return {
-      totalReports: total.count,
-      byMonth,
-      byType,
-      byRegion,
-      threshold: MIN_DISPLAY_THRESHOLD,
-    };
-  }
-}
-
-let adapter: DbAdapter | null = null;
-
-function getAdapter(): DbAdapter {
-  if (adapter) return adapter;
-
-  const connectionString = process.env.DATABASE_URL;
-  if (connectionString) {
-    adapter = new PostgresAdapter(connectionString);
-  } else {
-    const filePath = path.join(process.cwd(), ".data", "local.db");
-    adapter = new SqliteAdapter(filePath);
-  }
-  return adapter;
-}
-
-export async function insertReportEntry(entry: NewReportEntry): Promise<void> {
-  return getAdapter().insertReportEntry(entry);
-}
-
-export async function getStats(): Promise<Stats> {
-  return getAdapter().getStats();
+  return {
+    totalReports: total.count,
+    byMonth,
+    byType,
+    byRegion,
+    threshold: MIN_DISPLAY_THRESHOLD,
+  };
 }

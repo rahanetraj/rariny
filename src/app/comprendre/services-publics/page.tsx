@@ -1,59 +1,42 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import Link from "next/link";
 import ContentHeader from "@/components/ContentHeader";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
 import LegalReferences from "@/components/LegalReferences";
-import Link from "next/link";
+import Markdown from "@/components/Markdown";
+import { getContentPage } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Discrimination dans l'accès aux services et lieux publics",
   description: "Vos droits face à une discrimination raciale dans un lieu public ou un service.",
 };
+export const dynamic = "force-dynamic";
 
-export default function ServicesPublicsPage() {
+export default async function ServicesPublicsPage() {
+  const page = await getContentPage("services-publics");
+  if (!page) notFound();
+
   return (
     <article>
-      <ContentHeader
-        eyebrow="Comprendre"
-        title="Accès aux services et lieux publics"
-        lede="Commerces, transports, administrations, établissements scolaires : chacun a droit à un traitement égal, sans distinction d'origine."
-      />
+      <ContentHeader eyebrow={page.eyebrow} title={page.title} lede={page.lede} />
 
       <div className="mx-auto max-w-3xl px-4 sm:px-6 pb-16">
         <div className="mt-6">
           <LegalDisclaimer />
         </div>
 
-        <div className="prose-content mt-8 space-y-5 text-[15px] leading-relaxed text-charbon/90">
-          <p>
-            La Constitution malgache garantit à chacun un accès égal à l&apos;éducation et à la
-            vie culturelle, sans distinction d&apos;origine ou de race (articles 24 à 26). Ce
-            principe s&apos;étend, dans son esprit, à l&apos;ensemble des services ouverts au
-            public : commerces, restaurants, transports, administrations, établissements de
-            santé ou d&apos;enseignement.
-          </p>
-          <p>
-            Concrètement, un refus de vente, d&apos;entrée ou de service, un traitement différent
-            et défavorable, ou des propos humiliants fondés sur votre origine dans l&apos;un de
-            ces contextes peuvent constituer une discrimination raciale.
-          </p>
+        <div className="mt-8">
+          <Markdown>{page.bodyMarkdown}</Markdown>
+        </div>
 
-          <h2 className="font-display text-lg font-bold text-indigo pt-2">
-            Qui est compétent ?
-          </h2>
-          <p>
-            La <strong>CNIDH</strong> (Commission Nationale Indépendante des Droits de
-            l&apos;Homme) est l&apos;interlocuteur de référence pour ce type de situation. Selon
-            la gravité des faits, une plainte pénale peut également être envisagée.
+        <div className="mt-6 rounded-lg border border-ecume-deep bg-white p-5">
+          <p className="text-sm text-charbon/80">
+            Vous avez vécu une telle situation ?{" "}
+            <Link href="/signalement" className="text-laterite font-semibold hover:underline">
+              Générez votre document de signalement →
+            </Link>
           </p>
-
-          <div className="rounded-lg border border-ecume-deep bg-white p-5 not-prose">
-            <p className="text-sm text-charbon/80">
-              Vous avez vécu une telle situation ?{" "}
-              <Link href="/signalement" className="text-laterite font-semibold hover:underline">
-                Générez votre document de signalement →
-              </Link>
-            </p>
-          </div>
         </div>
 
         <LegalReferences tag="services" />

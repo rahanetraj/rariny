@@ -1,9 +1,12 @@
 import Link from "next/link";
-import { INSTITUTIONS, type InstitutionSlug } from "@/lib/institutions";
+import { notFound } from "next/navigation";
+import type { InstitutionSlug } from "@/lib/institutions";
+import { getInstitution } from "@/lib/content";
 import ContentHeader from "@/components/ContentHeader";
 
-export default function InstitutionDetail({ slug }: { slug: InstitutionSlug }) {
-  const institution = INSTITUTIONS[slug];
+export default async function InstitutionDetail({ slug }: { slug: InstitutionSlug }) {
+  const institution = await getInstitution(slug);
+  if (!institution) notFound();
 
   return (
     <article>
@@ -28,7 +31,7 @@ export default function InstitutionDetail({ slug }: { slug: InstitutionSlug }) {
               <p className="text-sm text-charbon/85 leading-relaxed">{institution.hours}</p>
             </InfoBlock>
           )}
-          {institution.phone && institution.phone.length > 0 && (
+          {institution.phone.length > 0 && (
             <InfoBlock label="Téléphone">
               <ul className="text-sm text-charbon/85 space-y-1">
                 {institution.phone.map((p) => (

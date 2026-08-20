@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ContentHeader from "@/components/ContentHeader";
-import { INSTITUTIONS } from "@/lib/institutions";
+import { getInstitutions } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Où porter plainte",
   description: "Les institutions compétentes à Madagascar selon le type de discrimination raciale subie.",
 };
+export const dynamic = "force-dynamic";
 
-export default function OuPorterPlaintePage() {
-  const institutions = Object.values(INSTITUTIONS);
+export default async function OuPorterPlaintePage() {
+  const institutions = await getInstitutions();
 
   return (
     <article>

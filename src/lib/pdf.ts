@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
-import { DISCRIMINATION_TYPE_LABELS, INSTITUTIONS, recommendedInstitutions } from "@/lib/institutions";
+import { DISCRIMINATION_TYPE_LABELS, recommendedInstitutions } from "@/lib/institutions";
 import type { DiscriminationType } from "@/lib/institutions";
+import type { InstitutionRecord } from "@/lib/content";
 import { CONTEXT_OPTIONS } from "@/lib/formOptions";
 import { MONTH_OPTIONS } from "@/lib/formOptions";
 
@@ -34,7 +35,7 @@ function monthLabel(month: number): string {
   return MONTH_OPTIONS.find((o) => o.value === month)?.label ?? String(month);
 }
 
-export function generateReportPdf(data: ReportPdfData): void {
+export function generateReportPdf(data: ReportPdfData, institutions: InstitutionRecord[]): void {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   let y = MARGIN;
 
@@ -139,7 +140,8 @@ export function generateReportPdf(data: ReportPdfData): void {
 
   const slugs = recommendedInstitutions(data.discriminationType);
   for (const slug of slugs) {
-    const institution = INSTITUTIONS[slug];
+    const institution = institutions.find((i) => i.slug === slug);
+    if (!institution) continue;
     ensureSpace(30);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
@@ -152,7 +154,7 @@ export function generateReportPdf(data: ReportPdfData): void {
     doc.setTextColor(...CHARBON);
     const details: string[] = [];
     if (institution.address) details.push(`Adresse : ${institution.address}`);
-    if (institution.phone?.length) details.push(`Téléphone : ${institution.phone.join(" / ")}`);
+    if (institution.phone.length) details.push(`Téléphone : ${institution.phone.join(" / ")}`);
     if (institution.website) details.push(`Site : ${institution.website}`);
     const detailLines = doc.splitTextToSize(details.join("\n"), CONTENT_WIDTH);
     ensureSpace(detailLines.length * 13);

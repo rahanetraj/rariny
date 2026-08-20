@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   DISCRIMINATION_TYPE_LABELS,
-  INSTITUTIONS,
   recommendedInstitutions,
   type DiscriminationType,
 } from "@/lib/institutions";
+import type { InstitutionRecord } from "@/lib/content";
 import { CONTEXT_OPTIONS, MONTH_OPTIONS, yearOptions, type ContextValue } from "@/lib/formOptions";
 import { REGION_OPTIONS } from "@/lib/regions";
 import { generateReportPdf } from "@/lib/pdf";
@@ -42,7 +42,7 @@ const EMPTY_STATE: FormState = {
   contactEmail: "",
 };
 
-export default function ReportForm() {
+export default function ReportForm({ institutions }: { institutions: InstitutionRecord[] }) {
   const [form, setForm] = useState<FormState>(EMPTY_STATE);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [submittedType, setSubmittedType] = useState<DiscriminationType | null>(null);
@@ -81,7 +81,7 @@ export default function ReportForm() {
       contactEmail: form.contactEmail.trim() || undefined,
     };
 
-    generateReportPdf(data);
+    generateReportPdf(data, institutions);
 
     try {
       const res = await fetch("/api/reports", {
@@ -104,12 +104,19 @@ export default function ReportForm() {
   }
 
   if (submittedType) {
-    return <Confirmation type={submittedType} statsWarning={statsWarning} onReset={() => {
-      setForm(EMPTY_STATE);
-      setErrors({});
-      setSubmittedType(null);
-      setStatsWarning(false);
-    }} />;
+    return (
+      <Confirmation
+        type={submittedType}
+        institutions={institutions}
+        statsWarning={statsWarning}
+        onReset={() => {
+          setForm(EMPTY_STATE);
+          setErrors({});
+          setSubmittedType(null);
+          setStatsWarning(false);
+        }}
+      />
+    );
   }
 
   return (
@@ -319,10 +326,12 @@ function FieldError({ message }: { message: string }) {
 
 function Confirmation({
   type,
+  institutions,
   statsWarning,
   onReset,
 }: {
   type: DiscriminationType;
+  institutions: InstitutionRecord[];
   statsWarning: boolean;
   onReset: () => void;
 }) {
@@ -354,7 +363,8 @@ function Confirmation({
       </h2>
       <div className="space-y-4">
         {slugs.map((slug) => {
-          const inst = INSTITUTIONS[slug];
+          const inst = institutions.find((i) => i.slug === slug);
+          if (!inst) return null;
           return (
             <Link
               key={slug}
@@ -363,7 +373,7 @@ function Confirmation({
             >
               <p className="font-display font-bold text-indigo">{inst.shortName}</p>
               {inst.address && <p className="text-sm text-charbon/70 mt-1">{inst.address}</p>}
-              {inst.phone && (
+              {inst.phone.length > 0 && (
                 <p className="text-sm text-charbon/70 font-mono mt-1">{inst.phone.join(" / ")}</p>
               )}
             </Link>

@@ -1,7 +1,7 @@
-import { referencesForTag, type LegalReference } from "@/lib/legalContent";
+import { getLegalReferencesByTag, type ContentTag } from "@/lib/content";
 
-export default function LegalReferences({ tag }: { tag: LegalReference["tags"][number] }) {
-  const refs = referencesForTag(tag);
+export default async function LegalReferences({ tag }: { tag: ContentTag }) {
+  const refs = await getLegalReferencesByTag(tag);
   if (refs.length === 0) return null;
 
   return (
