@@ -1,15 +1,15 @@
 import { saveReferenceAction, deleteReferenceAction } from "@/app/admin/actions";
 import type { LegalReferenceRecord } from "@/lib/content";
 
-const TAG_OPTIONS: { value: string; label: string }[] = [
-  { value: "definitions", label: "Définitions" },
-  { value: "travail", label: "Au travail" },
-  { value: "services", label: "Services publics" },
-  { value: "en_ligne", label: "En ligne" },
-  { value: "incitation_haine", label: "Incitation à la haine" },
-];
+export type PageTagOption = { value: string; label: string };
 
-export default function ReferenceForm({ reference }: { reference?: LegalReferenceRecord }) {
+export default function ReferenceForm({
+  reference,
+  pageOptions,
+}: {
+  reference?: LegalReferenceRecord;
+  pageOptions: PageTagOption[];
+}) {
   return (
     <div className="space-y-5">
       <form id="reference-form" action={saveReferenceAction} className="space-y-5">
@@ -60,13 +60,13 @@ export default function ReferenceForm({ reference }: { reference?: LegalReferenc
           Pages où afficher cette référence
         </legend>
         <div className="flex flex-wrap gap-3">
-          {TAG_OPTIONS.map((tag) => (
+          {pageOptions.map((tag) => (
             <label key={tag.value} className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 name="tags"
                 value={tag.value}
-                defaultChecked={reference?.tags.includes(tag.value as never)}
+                defaultChecked={reference?.tags.includes(tag.value)}
                 className="accent-laterite"
               />
               {tag.label}

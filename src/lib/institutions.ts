@@ -1,8 +1,4 @@
-export type InstitutionSlug =
-  | "cnidh"
-  | "inspection-travail"
-  | "police-gendarmerie"
-  | "associations";
+export type InstitutionSlug = string;
 
 export type DiscriminationType =
   | "emploi"
@@ -19,6 +15,12 @@ export const DISCRIMINATION_TYPE_LABELS: Record<DiscriminationType, string> = {
   autre: "Autre situation",
 };
 
+/**
+ * Slugs des institutions "historiques" suggérées automatiquement selon le type de
+ * discrimination signalé. Les institutions créées ultérieurement depuis l'admin
+ * apparaissent dans l'annuaire « Où porter plainte » mais ne sont pas recommandées
+ * automatiquement ici (cette association n'est pas éditable depuis l'admin).
+ */
 export function recommendedInstitutions(type: DiscriminationType): InstitutionSlug[] {
   switch (type) {
     case "emploi":

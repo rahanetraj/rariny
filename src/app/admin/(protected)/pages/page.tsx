@@ -9,7 +9,15 @@ export default async function AdminPagesPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold text-indigo mb-6">Pages « Comprendre »</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-display text-2xl font-bold text-indigo">Pages « Comprendre »</h1>
+        <Link
+          href="/admin/pages/new"
+          className="px-4 py-2 rounded-md bg-laterite text-white text-sm font-semibold hover:bg-laterite-dark"
+        >
+          + Nouvelle page
+        </Link>
+      </div>
       <div className="space-y-3">
         {pages.map((page) => (
           <Link

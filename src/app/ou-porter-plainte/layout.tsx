@@ -1,17 +1,14 @@
 import SectionSubNav from "@/components/SectionSubNav";
+import { getAideNavLinks } from "@/lib/nav";
 
-const LINKS = [
-  { href: "/ou-porter-plainte", label: "Vue d'ensemble" },
-  { href: "/ou-porter-plainte/cnidh", label: "CNIDH" },
-  { href: "/ou-porter-plainte/inspection-travail", label: "Inspection du Travail" },
-  { href: "/ou-porter-plainte/police-gendarmerie", label: "Police / Gendarmerie" },
-  { href: "/ou-porter-plainte/associations", label: "Associations / ONDH" },
-];
+export const dynamic = "force-dynamic";
 
-export default function OuPorterPlainteLayout({ children }: { children: React.ReactNode }) {
+export default async function OuPorterPlainteLayout({ children }: { children: React.ReactNode }) {
+  const links = await getAideNavLinks();
+
   return (
     <>
-      <SectionSubNav links={LINKS} />
+      <SectionSubNav links={links} />
       {children}
     </>
   );

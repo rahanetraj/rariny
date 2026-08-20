@@ -1,17 +1,14 @@
 import SectionSubNav from "@/components/SectionSubNav";
+import { getComprendreNavLinks } from "@/lib/nav";
 
-const LINKS = [
-  { href: "/comprendre", label: "Définitions" },
-  { href: "/comprendre/travail", label: "Au travail" },
-  { href: "/comprendre/services-publics", label: "Services publics" },
-  { href: "/comprendre/en-ligne", label: "En ligne" },
-  { href: "/comprendre/incitation-haine", label: "Incitation à la haine" },
-];
+export const dynamic = "force-dynamic";
 
-export default function ComprendreLayout({ children }: { children: React.ReactNode }) {
+export default async function ComprendreLayout({ children }: { children: React.ReactNode }) {
+  const links = await getComprendreNavLinks();
+
   return (
     <>
-      <SectionSubNav links={LINKS} />
+      <SectionSubNav links={links} />
       {children}
     </>
   );

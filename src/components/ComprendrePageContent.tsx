@@ -1,22 +1,11 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import ContentHeader from "@/components/ContentHeader";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
 import LegalReferences from "@/components/LegalReferences";
 import Markdown from "@/components/Markdown";
-import { getContentPage } from "@/lib/content";
+import type { ContentPageRecord } from "@/lib/content";
 
-export const metadata: Metadata = {
-  title: "Discrimination au travail",
-  description: "Ce que dit le Code du Travail malgache sur la discrimination raciale à l'emploi.",
-};
-export const dynamic = "force-dynamic";
-
-export default async function TravailPage() {
-  const page = await getContentPage("travail");
-  if (!page) notFound();
-
+export default function ComprendrePageContent({ page }: { page: ContentPageRecord }) {
   return (
     <article>
       <ContentHeader eyebrow={page.eyebrow} title={page.title} lede={page.lede} />
@@ -32,14 +21,14 @@ export default async function TravailPage() {
 
         <div className="mt-6 rounded-lg border border-ecume-deep bg-white p-5">
           <p className="text-sm text-charbon/80">
-            Vous vivez une situation de discrimination au travail ?{" "}
+            Vous vivez une situation de ce type ?{" "}
             <Link href="/signalement" className="text-laterite font-semibold hover:underline">
               Générez votre document de signalement →
             </Link>
           </p>
         </div>
 
-        <LegalReferences tag="travail" />
+        <LegalReferences tag={page.slug} />
       </div>
     </article>
   );

@@ -9,7 +9,15 @@ export default async function AdminInstitutionsPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold text-indigo mb-6">Institutions</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-display text-2xl font-bold text-indigo">Institutions</h1>
+        <Link
+          href="/admin/institutions/new"
+          className="px-4 py-2 rounded-md bg-laterite text-white text-sm font-semibold hover:bg-laterite-dark"
+        >
+          + Nouvelle institution
+        </Link>
+      </div>
       <div className="space-y-3">
         {institutions.map((inst) => (
           <Link

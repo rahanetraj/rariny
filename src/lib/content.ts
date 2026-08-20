@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getPgPool, getSqliteDb, usingPostgres } from "./dbConnection";
-import type { InstitutionSlug } from "./institutions";
 
-export type ContentTag = "definitions" | "travail" | "services" | "en_ligne" | "incitation_haine";
+export type ContentTag = string;
 
 export type LegalReferenceRecord = {
   id: string;
@@ -14,7 +13,7 @@ export type LegalReferenceRecord = {
 };
 
 export type InstitutionRecord = {
-  slug: InstitutionSlug;
+  slug: string;
   name: string;
   shortName: string;
   mission: string;
@@ -26,12 +25,7 @@ export type InstitutionRecord = {
   note: string | null;
 };
 
-export type ContentPageSlug =
-  | "definitions"
-  | "travail"
-  | "services-publics"
-  | "en-ligne"
-  | "incitation-haine";
+export type ContentPageSlug = string;
 
 export type ContentPageRecord = {
   slug: ContentPageSlug;
@@ -40,6 +34,20 @@ export type ContentPageRecord = {
   lede: string;
   bodyMarkdown: string;
 };
+
+/** Slug de la page "Comprendre" servie sur /comprendre elle-même — non supprimable. */
+export const INDEX_PAGE_SLUG = "definitions";
+
+export function slugify(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // strip accents (e.g. "é" -> "e" instead of "e-")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
 
 const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS legal_references (
@@ -72,6 +80,7 @@ CREATE TABLE IF NOT EXISTS content_pages (
 `;
 
 // --- Seed data: the site's original content, used only to populate empty tables. ---
+// Tags on legal references match content page slugs directly.
 
 const SEED_LEGAL_REFERENCES: Omit<LegalReferenceRecord, "id">[] = [
   {
@@ -87,7 +96,7 @@ const SEED_LEGAL_REFERENCES: Omit<LegalReferenceRecord, "id">[] = [
     reference: "Constitution de la République de Madagascar, articles 24 à 26",
     summary:
       "Ces articles consacrent le droit à l'éducation, à la participation à la vie culturelle et à l'accès à l'emploi, sans distinction fondée sur l'origine ou la race — ils prolongent l'article 8 dans des domaines concrets de la vie quotidienne.",
-    tags: ["definitions", "services", "travail"],
+    tags: ["definitions", "services-publics", "travail"],
     sortOrder: 1,
   },
   {
@@ -95,7 +104,7 @@ const SEED_LEGAL_REFERENCES: Omit<LegalReferenceRecord, "id">[] = [
     reference: "Code pénal malgache",
     summary:
       "Le Code pénal incrimine la propagande raciste et l'incitation à la haine raciale. Les peines exactes (amende, emprisonnement) dépendent de la qualification retenue par le parquet au moment des faits — un point à faire confirmer auprès d'un professionnel du droit ou du Journal Officiel en vigueur.",
-    tags: ["definitions", "incitation_haine"],
+    tags: ["definitions", "incitation-haine"],
     sortOrder: 2,
   },
   {
@@ -104,7 +113,7 @@ const SEED_LEGAL_REFERENCES: Omit<LegalReferenceRecord, "id">[] = [
       "Loi n°2016-029 du 24 août 2016 portant Code de la communication médiatisée (texte en vigueur, qui a abrogé la loi n°90-031 du 21 décembre 1990 sur la communication citée dans les versions plus anciennes de ce type de document)",
     summary:
       "Le cadre légal malgache sur la communication réprime l'utilisation des médias pour inciter à la haine à raison du sexe, de la religion ou de l'appartenance à une population, ainsi que la xénophobie et la discrimination — en renvoyant aux peines prévues par le Code pénal. Attention : la loi de 1990 souvent citée à ce sujet a été abrogée en 2016, c'est donc la loi n°2016-029 qui s'applique aujourd'hui.",
-    tags: ["definitions", "en_ligne", "incitation_haine"],
+    tags: ["definitions", "en-ligne", "incitation-haine"],
     sortOrder: 3,
   },
   {
@@ -122,7 +131,7 @@ const SEED_LEGAL_REFERENCES: Omit<LegalReferenceRecord, "id">[] = [
       "Loi n°2014-006 du 17 juillet 2014 sur la lutte contre la cybercriminalité, modifiée par la loi n°2016-031 du 15 juillet 2016",
     summary:
       "Une injure ou diffamation commise en ligne à raison du sexe, du handicap, de l'origine, de l'appartenance (ou non) à une ethnie, une nation, une race ou une religion est punie d'un emprisonnement de deux à dix ans et d'une amende de 2 000 000 à 100 000 000 d'ariary, ou de l'une de ces deux peines seulement — une aggravation nette par rapport aux injures « ordinaires ». Les montants exacts doivent être vérifiés dans le texte consolidé en vigueur au moment des faits.",
-    tags: ["en_ligne", "incitation_haine"],
+    tags: ["en-ligne", "incitation-haine"],
     sortOrder: 5,
   },
   {
@@ -285,6 +294,13 @@ Il s'agit d'une infraction pénale : la **Police** ou la **Gendarmerie** sont co
   },
 ];
 
+/** Anciens noms de tags (avant l'alignement tag = slug de page) vers les nouveaux. */
+const TAG_MIGRATIONS: Record<string, string> = {
+  services: "services-publics",
+  en_ligne: "en-ligne",
+  incitation_haine: "incitation-haine",
+};
+
 let tablesReadyPromise: Promise<void> | null = null;
 
 async function ensureTables(): Promise<void> {
@@ -299,9 +315,27 @@ async function ensureTables(): Promise<void> {
       db.exec(CREATE_TABLES_SQL);
     }
     await seedIfEmpty();
+    await migrateLegacyTags();
   })();
 
   return tablesReadyPromise;
+}
+
+async function migrateLegacyTags(): Promise<void> {
+  const refs = await getLegalReferencesRaw();
+  for (const ref of refs) {
+    let changed = false;
+    const newTags = ref.tags.map((tag) => {
+      if (TAG_MIGRATIONS[tag]) {
+        changed = true;
+        return TAG_MIGRATIONS[tag];
+      }
+      return tag;
+    });
+    if (changed) {
+      await writeLegalReference({ ...ref, tags: Array.from(new Set(newTags)) });
+    }
+  }
 }
 
 async function seedIfEmpty(): Promise<void> {
@@ -404,7 +438,7 @@ function rowToLegalReference(row: {
     title: row.title,
     reference: row.reference,
     summary: row.summary,
-    tags: row.tags.split(",").filter(Boolean) as ContentTag[],
+    tags: row.tags.split(",").filter(Boolean),
     sortOrder: row.sort_order,
   };
 }
@@ -422,7 +456,7 @@ function rowToInstitution(row: {
   note: string | null;
 }): InstitutionRecord {
   return {
-    slug: row.slug as InstitutionSlug,
+    slug: row.slug,
     name: row.name,
     shortName: row.short_name,
     mission: row.mission,
@@ -443,7 +477,7 @@ function rowToContentPage(row: {
   body_markdown: string;
 }): ContentPageRecord {
   return {
-    slug: row.slug as ContentPageSlug,
+    slug: row.slug,
     eyebrow: row.eyebrow,
     title: row.title,
     lede: row.lede,
@@ -453,8 +487,7 @@ function rowToContentPage(row: {
 
 // --- Legal references ---
 
-export async function getLegalReferences(): Promise<LegalReferenceRecord[]> {
-  await ensureTables();
+async function getLegalReferencesRaw(): Promise<LegalReferenceRecord[]> {
   if (usingPostgres()) {
     const pool = await getPgPool();
     const { rows } = await pool.query(`SELECT * FROM legal_references ORDER BY sort_order ASC`);
@@ -463,6 +496,22 @@ export async function getLegalReferences(): Promise<LegalReferenceRecord[]> {
   const db = await getSqliteDb();
   const rows = db.prepare(`SELECT * FROM legal_references ORDER BY sort_order ASC`).all();
   return (rows as Parameters<typeof rowToLegalReference>[0][]).map(rowToLegalReference);
+}
+
+async function writeLegalReference(ref: LegalReferenceRecord): Promise<void> {
+  const tags = ref.tags.join(",");
+  if (usingPostgres()) {
+    const pool = await getPgPool();
+    await pool.query(`UPDATE legal_references SET tags = $2 WHERE id = $1`, [ref.id, tags]);
+  } else {
+    const db = await getSqliteDb();
+    db.prepare(`UPDATE legal_references SET tags = ? WHERE id = ?`).run(tags, ref.id);
+  }
+}
+
+export async function getLegalReferences(): Promise<LegalReferenceRecord[]> {
+  await ensureTables();
+  return getLegalReferencesRaw();
 }
 
 export async function getLegalReferencesByTag(tag: ContentTag): Promise<LegalReferenceRecord[]> {
@@ -527,13 +576,12 @@ export async function getInstitutions(): Promise<InstitutionRecord[]> {
   return (rows as Parameters<typeof rowToInstitution>[0][]).map(rowToInstitution);
 }
 
-export async function getInstitution(slug: InstitutionSlug): Promise<InstitutionRecord | null> {
+export async function getInstitution(slug: string): Promise<InstitutionRecord | null> {
   const all = await getInstitutions();
   return all.find((inst) => inst.slug === slug) ?? null;
 }
 
-export async function saveInstitution(inst: InstitutionRecord): Promise<void> {
-  await ensureTables();
+async function writeInstitution(inst: InstitutionRecord): Promise<void> {
   const phone = inst.phone.join(",");
 
   if (usingPostgres()) {
@@ -579,6 +627,34 @@ export async function saveInstitution(inst: InstitutionRecord): Promise<void> {
   }
 }
 
+/** Met à jour une institution existante. */
+export async function saveInstitution(inst: InstitutionRecord): Promise<void> {
+  await ensureTables();
+  await writeInstitution(inst);
+}
+
+/** Crée une nouvelle institution. Échoue si le slug est déjà utilisé. */
+export async function createInstitution(inst: InstitutionRecord): Promise<{ ok: true } | { ok: false; error: string }> {
+  await ensureTables();
+  const slug = slugify(inst.slug);
+  if (!slug) return { ok: false, error: "Adresse invalide." };
+  const existing = await getInstitution(slug);
+  if (existing) return { ok: false, error: "Cette adresse est déjà utilisée par une autre institution." };
+  await writeInstitution({ ...inst, slug });
+  return { ok: true };
+}
+
+export async function deleteInstitution(slug: string): Promise<void> {
+  await ensureTables();
+  if (usingPostgres()) {
+    const pool = await getPgPool();
+    await pool.query(`DELETE FROM institutions WHERE slug = $1`, [slug]);
+  } else {
+    const db = await getSqliteDb();
+    db.prepare(`DELETE FROM institutions WHERE slug = ?`).run(slug);
+  }
+}
+
 // --- Content pages ---
 
 export async function getContentPages(): Promise<ContentPageRecord[]> {
@@ -598,9 +674,7 @@ export async function getContentPage(slug: ContentPageSlug): Promise<ContentPage
   return all.find((page) => page.slug === slug) ?? null;
 }
 
-export async function saveContentPage(page: ContentPageRecord): Promise<void> {
-  await ensureTables();
-
+async function writeContentPage(page: ContentPageRecord): Promise<void> {
   if (usingPostgres()) {
     const pool = await getPgPool();
     await pool.query(
@@ -620,10 +694,36 @@ export async function saveContentPage(page: ContentPageRecord): Promise<void> {
   }
 }
 
-export const CONTENT_PAGE_SLUGS: ContentPageSlug[] = [
-  "definitions",
-  "travail",
-  "services-publics",
-  "en-ligne",
-  "incitation-haine",
-];
+/** Met à jour une page existante. */
+export async function saveContentPage(page: ContentPageRecord): Promise<void> {
+  await ensureTables();
+  await writeContentPage(page);
+}
+
+/** Crée une nouvelle page « Comprendre ». Échoue si le slug est déjà utilisé. */
+export async function createContentPage(
+  page: ContentPageRecord
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await ensureTables();
+  const slug = slugify(page.slug);
+  if (!slug) return { ok: false, error: "Adresse invalide." };
+  const existing = await getContentPage(slug);
+  if (existing) return { ok: false, error: "Cette adresse est déjà utilisée par une autre page." };
+  await writeContentPage({ ...page, slug });
+  return { ok: true };
+}
+
+export async function deleteContentPage(slug: ContentPageSlug): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (slug === INDEX_PAGE_SLUG) {
+    return { ok: false, error: "La page d'index « Comprendre » ne peut pas être supprimée." };
+  }
+  await ensureTables();
+  if (usingPostgres()) {
+    const pool = await getPgPool();
+    await pool.query(`DELETE FROM content_pages WHERE slug = $1`, [slug]);
+  } else {
+    const db = await getSqliteDb();
+    db.prepare(`DELETE FROM content_pages WHERE slug = ?`).run(slug);
+  }
+  return { ok: true };
+}

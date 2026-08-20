@@ -4,21 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-const COMPRENDRE_LINKS = [
-  { href: "/comprendre", label: "Qu'est-ce que la discrimination raciale ?" },
-  { href: "/comprendre/travail", label: "Discrimination au travail" },
-  { href: "/comprendre/services-publics", label: "Accès aux services et lieux publics" },
-  { href: "/comprendre/en-ligne", label: "Discrimination en ligne" },
-  { href: "/comprendre/incitation-haine", label: "Incitation à la haine raciale" },
-];
-
-const AIDE_LINKS = [
-  { href: "/ou-porter-plainte", label: "Vue d'ensemble" },
-  { href: "/ou-porter-plainte/cnidh", label: "CNIDH" },
-  { href: "/ou-porter-plainte/inspection-travail", label: "Inspection du Travail" },
-  { href: "/ou-porter-plainte/police-gendarmerie", label: "Police / Gendarmerie" },
-  { href: "/ou-porter-plainte/associations", label: "Associations / ONDH" },
-];
+export type NavLink = { href: string; label: string };
 
 function NavGroup({
   label,
@@ -58,7 +44,13 @@ function NavGroup({
   );
 }
 
-export default function Header() {
+export default function Header({
+  comprendreLinks,
+  aideLinks,
+}: {
+  comprendreLinks: NavLink[];
+  aideLinks: NavLink[];
+}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(pathname);
@@ -95,8 +87,8 @@ export default function Header() {
             >
               Accueil
             </Link>
-            <NavGroup label="Comprendre" links={COMPRENDRE_LINKS} currentPath={pathname} />
-            <NavGroup label="Où porter plainte" links={AIDE_LINKS} currentPath={pathname} />
+            <NavGroup label="Comprendre" links={comprendreLinks} currentPath={pathname} />
+            <NavGroup label="Où porter plainte" links={aideLinks} currentPath={pathname} />
             <Link
               href="/observatoire"
               className={`px-3 py-2 text-sm font-medium rounded-md ${
@@ -159,7 +151,7 @@ export default function Header() {
                 Comprendre
               </p>
               <ul className="pl-2 space-y-1">
-                {COMPRENDRE_LINKS.map((l) => (
+                {comprendreLinks.map((l) => (
                   <li key={l.href}>
                     <Link href={l.href} className="block py-2 text-sm text-charbon">
                       {l.label}
@@ -173,7 +165,7 @@ export default function Header() {
                 Où porter plainte
               </p>
               <ul className="pl-2 space-y-1">
-                {AIDE_LINKS.map((l) => (
+                {aideLinks.map((l) => (
                   <li key={l.href}>
                     <Link href={l.href} className="block py-2 text-sm text-charbon">
                       {l.label}
