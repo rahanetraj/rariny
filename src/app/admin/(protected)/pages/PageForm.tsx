@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { saveContentPageAction, createContentPageAction, deleteContentPageAction } from "@/app/admin/actions";
 import { INDEX_PAGE_SLUG, type ContentPageRecord } from "@/lib/content";
+import SubmitButton from "@/components/SubmitButton";
 
 function publicPath(slug: string): string {
   return slug === INDEX_PAGE_SLUG ? "/comprendre" : `/comprendre/${slug}`;
@@ -104,20 +105,20 @@ export default function PageForm({
           />
         </div>
 
-        <button
-          type="submit"
-          className="px-6 py-2.5 rounded-md bg-laterite text-white text-sm font-semibold hover:bg-laterite-dark"
-        >
+        <SubmitButton pendingLabel={isNew ? "Création…" : "Enregistrement…"}>
           Enregistrer
-        </button>
+        </SubmitButton>
       </form>
 
       {!isNew && page.slug !== INDEX_PAGE_SLUG && (
         <form action={deleteContentPageAction}>
           <input type="hidden" name="slug" value={page.slug} />
-          <button type="submit" className="text-sm text-laterite-dark hover:underline">
+          <SubmitButton
+            pendingLabel="Suppression…"
+            className="text-sm text-laterite-dark hover:underline disabled:opacity-60"
+          >
             Supprimer cette page
-          </button>
+          </SubmitButton>
         </form>
       )}
     </div>

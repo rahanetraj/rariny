@@ -58,6 +58,20 @@ body {
     background: var(--color-or);
     color: var(--color-indigo-dark);
   }
+
+  button:not(:disabled),
+  [role="button"],
+  a[href],
+  label[for],
+  label:has(input),
+  select,
+  summary {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
 }
 
 @layer utilities {

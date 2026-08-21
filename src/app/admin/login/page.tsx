@@ -1,4 +1,5 @@
 import { loginAction } from "@/app/admin/actions";
+import SubmitButton from "@/components/SubmitButton";
 
 export const metadata = { title: "Connexion admin" };
 
@@ -36,12 +37,12 @@ export default async function AdminLoginPage({
             </p>
           )}
 
-          <button
-            type="submit"
-            className="w-full px-4 py-2.5 rounded-md bg-laterite text-white font-semibold hover:bg-laterite-dark transition-colors"
+          <SubmitButton
+            pendingLabel="Connexion…"
+            className="w-full px-4 py-2.5 rounded-md bg-laterite text-white font-semibold hover:bg-laterite-dark transition-colors disabled:opacity-60"
           >
             Se connecter
-          </button>
+          </SubmitButton>
         </form>
       </div>
     </div>

@@ -9,7 +9,7 @@ export default function SectionSubNav({ links }: { links: SubNavLink[] }) {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Sous-navigation" className="border-b border-ecume-deep bg-white">
+    <nav aria-label="Sous-navigation" className="relative border-b border-ecume-deep bg-white">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <ul className="flex gap-1 overflow-x-auto no-scrollbar py-2 -mb-px">
           {links.map((link) => {
@@ -32,6 +32,10 @@ export default function SectionSubNav({ links }: { links: SubNavLink[] }) {
           })}
         </ul>
       </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-linear-to-l from-white to-transparent sm:hidden"
+      />
     </nav>
   );
 }

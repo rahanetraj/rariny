@@ -1,5 +1,6 @@
 import { saveInstitutionAction, createInstitutionAction, deleteInstitutionAction } from "@/app/admin/actions";
 import type { InstitutionRecord } from "@/lib/content";
+import SubmitButton from "@/components/SubmitButton";
 
 export default function InstitutionForm({
   institution,
@@ -50,20 +51,20 @@ export default function InstitutionForm({
         <Field label="Horaires" name="hours" defaultValue={institution?.hours ?? ""} />
         <TextAreaField label="Note" name="note" defaultValue={institution?.note ?? ""} rows={3} />
 
-        <button
-          type="submit"
-          className="px-6 py-2.5 rounded-md bg-laterite text-white text-sm font-semibold hover:bg-laterite-dark"
-        >
+        <SubmitButton pendingLabel={isNew ? "Création…" : "Enregistrement…"}>
           Enregistrer
-        </button>
+        </SubmitButton>
       </form>
 
       {!isNew && (
         <form action={deleteInstitutionAction}>
           <input type="hidden" name="slug" value={institution.slug} />
-          <button type="submit" className="text-sm text-laterite-dark hover:underline">
+          <SubmitButton
+            pendingLabel="Suppression…"
+            className="text-sm text-laterite-dark hover:underline disabled:opacity-60"
+          >
             Supprimer cette institution
-          </button>
+          </SubmitButton>
         </form>
       )}
     </div>

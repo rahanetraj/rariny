@@ -12,6 +12,7 @@ import { CONTEXT_OPTIONS, MONTH_OPTIONS, yearOptions, type ContextValue } from "
 import { REGION_OPTIONS } from "@/lib/regions";
 import { generateReportPdf } from "@/lib/pdf";
 import WovenDivider from "@/components/WovenDivider";
+import Spinner from "@/components/Spinner";
 
 const DISCRIMINATION_TYPES = Object.entries(DISCRIMINATION_TYPE_LABELS) as [
   DiscriminationType,
@@ -47,6 +48,7 @@ export default function ReportForm({ institutions }: { institutions: Institution
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [submittedType, setSubmittedType] = useState<DiscriminationType | null>(null);
   const [statsWarning, setStatsWarning] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -82,8 +84,9 @@ export default function ReportForm({ institutions }: { institutions: Institution
     return Object.keys(next).length === 0;
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isGenerating) return;
     if (!validate()) return;
 
     const data = {
@@ -98,10 +101,18 @@ export default function ReportForm({ institutions }: { institutions: Institution
       contactEmail: form.contactEmail.trim() || undefined,
     };
 
-    generateReportPdf(data, institutions);
+    setIsGenerating(true);
 
-    try {
-      const res = await fetch("/api/reports", {
+    // Let the "generating" state actually paint before the (synchronous, and
+    // occasionally slow on low-end phones) PDF generation blocks the thread.
+    window.setTimeout(() => {
+      generateReportPdf(data, institutions);
+      // Show the confirmation immediately — it must not wait on the network
+      // call below, which can be slow or fail on a poor connection and
+      // shouldn't hold up the user's feedback that their PDF is ready.
+      setSubmittedType(data.discriminationType);
+
+      fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -111,13 +122,12 @@ export default function ReportForm({ institutions }: { institutions: Institution
           eventMonth: data.eventMonth,
           eventYear: data.eventYear,
         }),
-      });
-      if (!res.ok) setStatsWarning(true);
-    } catch {
-      setStatsWarning(true);
-    }
-
-    setSubmittedType(data.discriminationType);
+      })
+        .then((res) => {
+          if (!res.ok) setStatsWarning(true);
+        })
+        .catch(() => setStatsWarning(true));
+    }, 0);
   }
 
   if (submittedType) {
@@ -131,6 +141,7 @@ export default function ReportForm({ institutions }: { institutions: Institution
           setErrors({});
           setSubmittedType(null);
           setStatsWarning(false);
+          setIsGenerating(false);
         }}
       />
     );
@@ -331,9 +342,16 @@ export default function ReportForm({ institutions }: { institutions: Institution
 
       <button
         type="submit"
-        className="w-full sm:w-auto px-8 py-3.5 rounded-md bg-laterite text-white font-semibold hover:bg-laterite-dark transition-colors"
+        disabled={isGenerating}
+        className="w-full sm:w-auto px-8 py-3.5 rounded-md bg-laterite text-white font-semibold hover:bg-laterite-dark transition-colors disabled:opacity-70"
       >
-        Générer mon document PDF
+        {isGenerating ? (
+          <span className="inline-flex items-center gap-2">
+            <Spinner /> Génération en cours…
+          </span>
+        ) : (
+          "Générer mon document PDF"
+        )}
       </button>
     </form>
   );

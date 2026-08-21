@@ -1,5 +1,6 @@
 import { saveReferenceAction, deleteReferenceAction } from "@/app/admin/actions";
 import type { LegalReferenceRecord } from "@/lib/content";
+import SubmitButton from "@/components/SubmitButton";
 
 export type PageTagOption = { value: string; label: string };
 
@@ -88,20 +89,18 @@ export default function ReferenceForm({
         />
       </div>
 
-        <button
-          type="submit"
-          className="px-6 py-2.5 rounded-md bg-laterite text-white text-sm font-semibold hover:bg-laterite-dark"
-        >
-          Enregistrer
-        </button>
+        <SubmitButton>Enregistrer</SubmitButton>
       </form>
 
       {reference && (
         <form action={deleteReferenceAction}>
           <input type="hidden" name="id" value={reference.id} />
-          <button type="submit" className="text-sm text-laterite-dark hover:underline">
+          <SubmitButton
+            pendingLabel="Suppression…"
+            className="text-sm text-laterite-dark hover:underline disabled:opacity-60"
+          >
             Supprimer cette référence
-          </button>
+          </SubmitButton>
         </form>
       )}
     </div>
