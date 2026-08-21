@@ -40,6 +40,9 @@ export default function AdminNav() {
               {link.label}
             </Link>
           ))}
+          <Link href="/" target="_blank" className="text-ecume/80 hover:text-white">
+            Voir le site public ↗
+          </Link>
           <form action={logoutAction}>
             <SubmitButton
               pendingLabel="…"
@@ -89,6 +92,11 @@ export default function AdminNav() {
                 </Link>
               </li>
             ))}
+            <li>
+              <Link href="/" target="_blank" className="block py-2.5 text-sm text-ecume/80">
+                Voir le site public ↗
+              </Link>
+            </li>
             <li className="pt-2">
               <form action={logoutAction}>
                 <SubmitButton

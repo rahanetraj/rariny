@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { loginAction } from "@/app/admin/actions";
 import SubmitButton from "@/components/SubmitButton";
 
@@ -13,7 +14,12 @@ export default async function AdminLoginPage({
   return (
     <div className="min-h-screen flex items-center justify-center bg-ecume px-4">
       <div className="w-full max-w-sm">
-        <p className="font-display text-xl font-bold text-indigo text-center mb-1">Rariny</p>
+        <Link
+          href="/"
+          className="block font-display text-xl font-bold text-indigo text-center mb-1 hover:text-laterite"
+        >
+          Rariny
+        </Link>
         <p className="text-sm text-charbon/60 text-center mb-8">Panneau d&apos;administration</p>
 
         <form action={loginAction} className="bg-white rounded-xl border border-ecume-deep p-6 space-y-4">
@@ -44,6 +50,10 @@ export default async function AdminLoginPage({
             Se connecter
           </SubmitButton>
         </form>
+
+        <Link href="/" className="block text-center text-sm text-charbon/60 hover:text-laterite mt-4">
+          ← Retour au site
+        </Link>
       </div>
     </div>
   );
