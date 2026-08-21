@@ -52,6 +52,15 @@ export default function ReportForm({ institutions }: { institutions: Institution
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  const FIELD_CONTAINER_IDS: Partial<Record<keyof FormState, string>> = {
+    discriminationType: "field-discriminationType",
+    region: "field-region",
+    eventMonth: "field-period",
+    eventYear: "field-period",
+    context: "field-context",
+    description: "field-description",
+  };
+
   function validate(): boolean {
     const next: Partial<Record<keyof FormState, string>> = {};
     if (!form.discriminationType) next.discriminationType = "Choisissez un type de discrimination.";
@@ -62,6 +71,14 @@ export default function ReportForm({ institutions }: { institutions: Institution
     if (!form.description.trim() || form.description.trim().length < 20)
       next.description = "Décrivez les faits en au moins 20 caractères.";
     setErrors(next);
+
+    const firstErrorKey = Object.keys(next)[0] as keyof FormState | undefined;
+    if (firstErrorKey) {
+      const containerId = FIELD_CONTAINER_IDS[firstErrorKey];
+      const el = containerId ? document.getElementById(containerId) : null;
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
     return Object.keys(next).length === 0;
   }
 
@@ -121,7 +138,13 @@ export default function ReportForm({ institutions }: { institutions: Institution
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-10">
-      <fieldset>
+      {Object.keys(errors).length > 0 && (
+        <p role="alert" className="rounded-md bg-laterite/10 border border-laterite/30 px-4 py-3 text-sm text-laterite-dark">
+          Certains champs obligatoires sont manquants ou incomplets — vérifiez les messages en rouge ci-dessous.
+        </p>
+      )}
+
+      <fieldset id="field-discriminationType">
         <legend className="font-display text-base font-bold text-indigo mb-3">
           1. Type de discrimination <span className="text-laterite">*</span>
         </legend>
@@ -151,7 +174,7 @@ export default function ReportForm({ institutions }: { institutions: Institution
       </fieldset>
 
       <div className="grid gap-6 sm:grid-cols-2">
-        <div>
+        <div id="field-region">
           <label htmlFor="region" className="block font-display text-base font-bold text-indigo mb-2">
             2. Région <span className="text-laterite">*</span>
           </label>
@@ -171,7 +194,7 @@ export default function ReportForm({ institutions }: { institutions: Institution
           {errors.region && <FieldError message={errors.region} />}
         </div>
 
-        <div>
+        <div id="field-period">
           <span className="block font-display text-base font-bold text-indigo mb-2">
             3. Période des faits <span className="text-laterite">*</span>
           </span>
@@ -209,7 +232,7 @@ export default function ReportForm({ institutions }: { institutions: Institution
         </div>
       </div>
 
-      <fieldset>
+      <fieldset id="field-context">
         <legend className="font-display text-base font-bold text-indigo mb-3">
           4. Contexte <span className="text-laterite">*</span>
         </legend>
@@ -238,7 +261,7 @@ export default function ReportForm({ institutions }: { institutions: Institution
         {errors.context && <FieldError message={errors.context} />}
       </fieldset>
 
-      <div>
+      <div id="field-description">
         <label htmlFor="description" className="block font-display text-base font-bold text-indigo mb-2">
           5. Description des faits <span className="text-laterite">*</span>
         </label>
